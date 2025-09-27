@@ -4,4 +4,5 @@ click>=8.0.0
 python-dotenv>=1.0.0
 flask>=2.0.0
 flask-socketio>=5.0.0
-python-docx>=0.8.11 
+python-docx>=0.8.11
+google-generativeai>=0.8.0 

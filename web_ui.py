@@ -13,11 +13,23 @@ import socket
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, will use system environment variables
+
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from command_mapper import CommandMapper
 from executor import CommandExecutor
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 try:
     from flask import Flask, render_template, request, jsonify, session
@@ -36,8 +48,128 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 command_mapper = CommandMapper()
 executor = CommandExecutor()
 
+# Initialize Gemini AI
+gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+if genai and gemini_api_key:
+    try:
+        genai.configure(api_key=gemini_api_key)
+        # Try different model names in order of preference
+        model_names = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-pro-latest']
+        gemini_model = None
+        
+        for model_name in model_names:
+            try:
+                gemini_model = genai.GenerativeModel(model_name)
+                print(f"✓ Gemini AI initialized successfully with model: {model_name}")
+                break
+            except Exception as model_error:
+                print(f"⚠ Model {model_name} not available: {model_error}")
+                continue
+        
+        if not gemini_model:
+            print("❌ No Gemini models available")
+            gemini_model = None
+            
+    except Exception as e:
+        print(f"❌ Gemini AI initialization failed: {e}")
+        gemini_model = None
+else:
+    gemini_model = None
+    if not genai:
+        print("⚠ Google Generative AI not available")
+    if not gemini_api_key:
+        print("⚠ Gemini API key not found. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
+
+# Constants
+NO_MESSAGE_ERROR = 'No message provided'
+
 # Chat history storage (in memory for web session)
 chat_history = []
+
+def extract_command_with_gemini(user_input: str) -> Dict:
+    """Extract command from text using Gemini AI."""
+    if not gemini_model:
+        return {
+            'error': 'Gemini AI is not available. Please check your API key configuration.',
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+    
+    try:
+        # Create a prompt for command extraction
+        prompt = f"""
+You are a command line assistant that converts natural language to system commands.
+Current platform: {command_mapper.system}
+
+Rules:
+1. Extract ONLY the system command from the user's text, no explanations
+2. Use platform-appropriate commands
+3. For macOS, use 'open -a' for applications
+4. For Windows, use 'start' for applications  
+5. For Linux, use direct command names
+6. For web searches, return a command that opens the browser
+7. Be safe - avoid dangerous commands like 'rm -rf /'
+8. If the text doesn't contain a clear command request, return "NO_COMMAND_FOUND"
+
+Examples:
+- "open chrome" → open -a "Google Chrome"
+- "list ports with 8085" → lsof -i tcp:8085
+- "kill port 8085" → kill -9 $(lsof -t -i tcp:8085)
+- "search for weather" → open "https://www.google.com/search?q=weather"
+- "show date" → date
+
+User input: {user_input}
+
+Extract the system command:"""
+
+        # Generate response using Gemini
+        response = gemini_model.generate_content(prompt)
+        
+        if not response.text:
+            return {
+                'error': 'Gemini AI did not return a response',
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+        
+        extracted_command = response.text.strip()
+        
+        # Check if Gemini found a command
+        if extracted_command == "NO_COMMAND_FOUND" or not extracted_command:
+            return {
+                'message': '🤖 I couldn\'t extract a clear command from your text. Please try rephrasing with a specific action.',
+                'mapped_command': None,
+                'user_input': user_input,
+                'timestamp': datetime.datetime.now().isoformat(),
+                'execution_result': None,
+                'success': False
+            }
+        
+        # Validate the command for safety
+        if command_mapper._is_safe_command(extracted_command):
+            return {
+                'message': '🤖 Gemini AI extracted command from your text:',
+                'mapped_command': extracted_command,
+                'user_input': user_input,
+                'timestamp': datetime.datetime.now().isoformat(),
+                'execution_result': None,
+                'success': True,
+                'needs_confirmation': True
+            }
+        else:
+            return {
+                'message': f'🚫 Gemini AI extracted a potentially unsafe command: {extracted_command}',
+                'mapped_command': None,
+                'user_input': user_input,
+                'timestamp': datetime.datetime.now().isoformat(),
+                'execution_result': None,
+                'success': False,
+                'needs_confirmation': False
+            }
+            
+    except Exception as e:
+        return {
+            'error': f'Gemini AI error: {str(e)}',
+            'timestamp': datetime.datetime.now().isoformat()
+        }
 
 @app.route('/')
 def index():
@@ -51,7 +183,7 @@ def chat():
     user_input = data.get('message', '').strip()
     
     if not user_input:
-        return jsonify({'error': 'No message provided'})
+        return jsonify({'error': NO_MESSAGE_ERROR})
     
     # Process the command
     result = process_command(user_input)
@@ -64,7 +196,7 @@ def handle_message(data):
     user_input = data.get('message', '').strip()
     
     if not user_input:
-        emit('error', {'error': 'No message provided'})
+        emit('error', {'error': NO_MESSAGE_ERROR})
         return
     
     # Process the command
@@ -78,7 +210,7 @@ def process_command(user_input: str) -> Dict:
     try:
         # Map to command
         # Use spell correction and mapping
-        mapped_command, original_input, suggested_correction = command_mapper.map_to_command_with_correction(user_input)
+        mapped_command, _, suggested_correction = command_mapper.map_to_command_with_correction(user_input)
         
         if not mapped_command:
             return {
@@ -110,9 +242,9 @@ def process_command(user_input: str) -> Dict:
                 message = f"I think you meant: '{suggested_correction}'\n\nI'll execute: {mapped_command}"
         else:
             if is_redis_listing:
-                message = f"I'll show you all Redis commands."
+                message = "I'll show you all Redis commands."
             elif is_command_listing:
-                message = f"I'll show you all available commands organized by category."
+                message = "I'll show you all available commands organized by category."
             elif is_intelligent_command:
                 message = f"I'll check Redis sentinel status and start it if needed."
             else:
@@ -145,6 +277,28 @@ def process_command(user_input: str) -> Dict:
             'execution_result': None,
             'success': False
         }
+
+@app.route('/api/gemini', methods=['POST'])
+def gemini_extract():
+    """Extract command from text using Gemini AI."""
+    data = request.get_json()
+    user_input = data.get('message', '').strip()
+    
+    if not user_input:
+        return jsonify({'error': NO_MESSAGE_ERROR})
+    
+    # Extract command using Gemini
+    result = extract_command_with_gemini(user_input)
+    
+    # Add to chat history
+    chat_history.append({
+        'user_input': user_input,
+        'response': result,
+        'timestamp': result.get('timestamp', datetime.datetime.now().isoformat()),
+        'type': 'gemini'
+    })
+    
+    return jsonify(result)
 
 @app.route('/api/execute', methods=['POST'])
 def execute_command():
@@ -213,6 +367,24 @@ def get_help():
             "list kafka topics",
             "delete kafka topic my_topic"
         ],
+        'gemini_examples': [
+            "curl command to install redis",
+            "how do I check if docker is running",
+            "give me the command to find large files",
+            "show me how to compress a folder",
+            "what's the command to kill a process by name",
+            "how to check disk usage in human readable format",
+            "command to download a file from URL",
+            "how to create a new directory recursively",
+            "show me the command to find my IP address",
+            "how to check which ports are listening",
+            "command to search for text in files",
+            "how to monitor system resources in real time",
+            "show me how to backup a database",
+            "command to extract a tar.gz file",
+            "how to check git status and branches",
+            "show me how to restart a service"
+        ],
         'features': [
             "Natural language to command conversion",
             "Cross-platform support",
@@ -280,7 +452,7 @@ if __name__ == '__main__':
         print(f"Server starting on http://localhost:{port}")
         print("Press Ctrl+C to stop")
         
-        socketio.run(app, debug=True, host='0.0.0.0', port=port)
+        socketio.run(app, debug=True, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
     except RuntimeError as e:
         print(f"❌ Error: {e}")
         sys.exit(1) 

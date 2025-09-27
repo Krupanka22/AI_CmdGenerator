@@ -168,6 +168,41 @@
             word-break: break-all;
         }
 
+        .url-command {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .command-text {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .url-preview {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        .url-link {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .url-link:hover {
+            color: #0d47a1;
+            text-decoration: underline;
+            transform: translateX(2px);
+        }
+
         .execution-result {
             background: #d4edda;
             border: 1px solid #c3e6cb;
@@ -285,6 +320,31 @@
             transform: none;
         }
 
+        .gemini-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .gemini-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .gemini-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .help-panel {
             background: white;
             border-radius: 10px;
@@ -319,6 +379,25 @@
         .example-item:hover {
             background: #e9ecef;
             border-color: #667eea;
+        }
+
+        .gemini-example {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border: 1px solid #ff9800;
+            position: relative;
+        }
+
+        .gemini-example:hover {
+            background: linear-gradient(135deg, #ffecb3 0%, #ffd54f 100%);
+            border-color: #f57c00;
+        }
+
+        .gemini-example::before {
+            content: "✨";
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            font-size: 12px;
         }
 
         /* Command listing styles */
@@ -457,9 +536,17 @@
             <div class="help-panel" id="help-panel">
                 <h3>💡 How to use</h3>
                 <p>Type your request in natural language and I'll convert it to a system command.</p>
+                
+                <h4>🤖 Try with Regular AI (Send button):</h4>
                 <div class="examples-grid" id="examples-grid">
                     <!-- Examples will be loaded here -->
                 </div>
+                
+                <h4>✨ Try with Gemini AI (Gemini AI button):</h4>
+                <div class="examples-grid" id="gemini-examples-grid">
+                    <!-- Gemini examples will be loaded here -->
+                </div>
+                
                 <div class="action-buttons">
                     <button class="btn btn-secondary" onclick="clearHistory()">Clear History</button>
                     <button class="btn btn-primary" id="toggle-help-btn" onclick="toggleHelp()">Hide Help</button>
@@ -490,6 +577,7 @@
             <div class="input-group">
                 <input type="text" class="chat-input" id="message-input" placeholder="Type your command here..." onkeypress="handleKeyPress(event)">
                 <button class="send-btn" onclick="sendMessage()" id="send-btn">Send</button>
+                <button class="gemini-btn" onclick="sendToGemini()" id="gemini-btn">✨ Gemini AI</button>
             </div>
         </div>
     </div>
@@ -504,6 +592,7 @@
         const chatHistory = document.getElementById('chat-history');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
+        const geminiBtn = document.getElementById('gemini-btn');
         const typingIndicator = document.getElementById('typing-indicator');
         const statusText = document.getElementById('status-text');
 
@@ -542,6 +631,53 @@
             
             // Send via Socket.IO
             socket.emit('send_message', { message: message });
+        }
+
+        function sendToGemini() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addUserMessage(message);
+            
+            // Clear input
+            messageInput.value = '';
+            
+            // Show typing indicator
+            showTyping();
+            
+            // Disable buttons during processing
+            geminiBtn.disabled = true;
+            sendBtn.disabled = true;
+            
+            // Send to Gemini API
+            fetch('/api/gemini', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideTyping();
+                geminiBtn.disabled = false;
+                sendBtn.disabled = false;
+                
+                if (data.error) {
+                    addErrorMessage(data.error);
+                } else {
+                    addBotMessage(data);
+                }
+            })
+            .catch(error => {
+                hideTyping();
+                geminiBtn.disabled = false;
+                sendBtn.disabled = false;
+                addErrorMessage('Network error: ' + error.message);
+            });
         }
 
         function addUserMessage(text) {
@@ -585,7 +721,7 @@
             if (data.mapped_command) {
                 // Don't show the raw command for intelligent commands, command listing, or redis listing
                 if (!data.is_intelligent_command && !data.is_command_listing && !data.is_redis_listing) {
-                    content += `<div class="command-display">${escapeHtml(data.mapped_command)}</div>`;
+                    content += formatCommandDisplay(data.mapped_command);
                 }
                 
                 if (data.needs_confirmation) {
@@ -612,18 +748,42 @@
                             </div>
                         `;
                     } else {
-                        content += `
-                            <div class="action-buttons">
-                                <button class="btn btn-success execute-btn" 
-                                        data-command="${escapeHtml(data.mapped_command)}" 
-                                        data-user-input="${escapeHtml(data.user_input)}">
-                                    ✅ Execute
-                                </button>
-                                <button class="btn btn-secondary skip-btn">
-                                    ⏭️ Skip
-                                </button>
-                            </div>
-                        `;
+                        // Check if it's a URL command for special handling
+                        const urlMatch = data.mapped_command.match(/open\s+"([^"]+)"/i) || data.mapped_command.match(/open\s+([^\s]+)/i);
+                        const isUrlCommand = urlMatch && urlMatch[1] && (urlMatch[1].startsWith('http://') || urlMatch[1].startsWith('https://'));
+                        
+                        if (isUrlCommand) {
+                            const url = urlMatch[1];
+                            content += `
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary open-link-btn" 
+                                            data-url="${escapeHtml(url)}">
+                                        🌐 Open Link
+                                    </button>
+                                    <button class="btn btn-success execute-btn" 
+                                            data-command="${escapeHtml(data.mapped_command)}" 
+                                            data-user-input="${escapeHtml(data.user_input)}">
+                                        ✅ Execute Command
+                                    </button>
+                                    <button class="btn btn-secondary skip-btn">
+                                        ⏭️ Skip
+                                    </button>
+                                </div>
+                            `;
+                        } else {
+                            content += `
+                                <div class="action-buttons">
+                                    <button class="btn btn-success execute-btn" 
+                                            data-command="${escapeHtml(data.mapped_command)}" 
+                                            data-user-input="${escapeHtml(data.user_input)}">
+                                        ✅ Execute
+                                    </button>
+                                    <button class="btn btn-secondary skip-btn">
+                                        ⏭️ Skip
+                                    </button>
+                                </div>
+                            `;
+                        }
                     }
                 }
             }
@@ -702,6 +862,17 @@
         function skipExecution() {
             addBotMessage({
                 message: '⏭️ Command execution skipped',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function openLink(url) {
+            // Open the URL in a new tab
+            window.open(url, '_blank', 'noopener,noreferrer');
+            
+            // Add a message to show the link was opened
+            addBotMessage({
+                message: `🌐 Opened link: ${url}`,
                 timestamp: new Date().toISOString()
             });
         }
@@ -822,14 +993,50 @@
             return div.innerHTML;
         }
 
+        function formatCommandDisplay(command) {
+            // Check if the command is a URL opening command
+            const urlMatch = command.match(/open\s+"([^"]+)"/i) || command.match(/open\s+([^\s]+)/i);
+            
+            if (urlMatch && urlMatch[1]) {
+                const url = urlMatch[1];
+                // Check if it's a valid URL
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    return `
+                        <div class="command-display">
+                            <div class="url-command">
+                                <span class="command-text">${escapeHtml(command)}</span>
+                                <div class="url-preview">
+                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="url-link">
+                                        🔗 ${escapeHtml(url)}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // For non-URL commands, return regular display
+            return `<div class="command-display">${escapeHtml(command)}</div>`;
+        }
+
         function loadExamples() {
             fetch('/api/help')
                 .then(response => response.json())
                 .then(data => {
+                    // Load regular examples
                     const examplesGrid = document.getElementById('examples-grid');
                     examplesGrid.innerHTML = data.examples.map(example => 
                         `<div class="example-item" onclick="useExample('${example}')">${escapeHtml(example)}</div>`
                     ).join('');
+                    
+                    // Load Gemini examples
+                    const geminiExamplesGrid = document.getElementById('gemini-examples-grid');
+                    if (data.gemini_examples) {
+                        geminiExamplesGrid.innerHTML = data.gemini_examples.map(example => 
+                            `<div class="example-item gemini-example" onclick="useGeminiExample('${example}')">${escapeHtml(example)}</div>`
+                        ).join('');
+                    }
                 })
                 .catch(error => console.error('Error loading examples:', error));
         }
@@ -837,6 +1044,13 @@
         function useExample(example) {
             messageInput.value = example;
             messageInput.focus();
+        }
+
+        function useGeminiExample(example) {
+            messageInput.value = example;
+            messageInput.focus();
+            // Optionally, you could automatically trigger Gemini here
+            // sendToGemini();
         }
 
         function clearHistory() {
@@ -901,6 +1115,9 @@
                 showAllCommands();
             } else if (e.target.classList.contains('show-redis-commands-btn')) {
                 showRedisCommands();
+            } else if (e.target.classList.contains('open-link-btn')) {
+                const url = e.target.getAttribute('data-url');
+                openLink(url);
             }
         });
 

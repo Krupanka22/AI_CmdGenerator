@@ -65,15 +65,29 @@ Convert natural language to system commands using AI and intelligent pattern mat
    pip install -r requirements.txt
    ```
 
-3. **Set up OpenAI API (optional but recommended):**
+3. **Set up AI APIs (optional but recommended):**
+   
+   **OpenAI API:**
    ```bash
    export OPENAI_API_KEY="your-api-key-here"
+   ```
+   
+   **Google Gemini API:**
+   ```bash
+   export GEMINI_API_KEY="your-gemini-api-key-here"
+   # or alternatively
+   export GOOGLE_API_KEY="your-gemini-api-key-here"
    ```
    
    Or create a `.env` file:
    ```
    OPENAI_API_KEY=your-api-key-here
+   GEMINI_API_KEY=your-gemini-api-key-here
    ```
+   
+   **Getting API Keys:**
+   - OpenAI: Visit [OpenAI API](https://platform.openai.com/api-keys)
+   - Gemini: Visit [Google AI Studio](https://aistudio.google.com/)
 
 ## Usage
 
@@ -122,6 +136,12 @@ python port_finder.py find
 # Check specific port availability
 python port_finder.py check 5000
 ```
+
+The web interface includes two AI-powered buttons:
+- **Send**: Uses OpenAI to convert natural language to commands
+- **✨ Gemini AI**: Uses Google Gemini to extract commands from text
+
+Both buttons will ask for user confirmation before executing the generated commands.
 
 ## Examples
 
