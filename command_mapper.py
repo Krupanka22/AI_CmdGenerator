@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from difflib import get_close_matches
 
 try:
-    import openai
+    from groq import Groq
 except ImportError:
-    openai = None
+    Groq = None
 
 @dataclass
 class CommandMapping:
@@ -29,17 +29,18 @@ class CommandMapping:
 class CommandMapper:
     """Maps natural language to system commands using AI and fallback rules."""
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-3.5-turbo"):
-        self.model = model
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        self.model = model or os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         self.system = platform.system().lower()
         
-        # Initialize OpenAI if available
-        if openai and (api_key or os.getenv("OPENAI_API_KEY")):
-            openai.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        # Initialize Groq if available
+        if Groq and (api_key or os.getenv("GROQ_API_KEY")):
+            self.groq_client = Groq(api_key=api_key or os.getenv("GROQ_API_KEY"))
             self.use_ai = True
         else:
+            self.groq_client = None
             self.use_ai = False
-            print("Warning: OpenAI not available. Using fallback pattern matching only.")
+            print("Warning: Groq not available. Using fallback pattern matching only.")
         
         # Load fallback patterns
         self.fallback_patterns = self._load_fallback_patterns()
@@ -240,7 +241,10 @@ class CommandMapper:
         try:
             system_prompt = self._get_system_prompt()
             
-            response = openai.ChatCompletion.create(
+            if not self.groq_client:
+                return None
+
+            response = self.groq_client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},

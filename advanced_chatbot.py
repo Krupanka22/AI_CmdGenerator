@@ -413,8 +413,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="AI Command Generator Advanced Chatbot")
-    parser.add_argument("--api-key", help="OpenAI API key")
-    parser.add_argument("--model", default="gpt-3.5-turbo", help="OpenAI model to use")
+    parser.add_argument("--api-key", help="Groq API key")
+    parser.add_argument("--model", default="llama-3.1-8b-instant", help="Groq model to use")
     parser.add_argument("--clear-history", action="store_true", help="Clear chat history on startup")
     
     args = parser.parse_args()

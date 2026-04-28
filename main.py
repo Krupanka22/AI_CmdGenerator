@@ -55,8 +55,8 @@ def main():
     parser = argparse.ArgumentParser(description="AI Command Generator")
     parser.add_argument("--input", "-i", help="Direct input command")
     parser.add_argument("--interactive", "-t", action="store_true", help="Interactive mode")
-    parser.add_argument("--api-key", help="OpenAI API key")
-    parser.add_argument("--model", default="gpt-3.5-turbo", help="OpenAI model to use")
+    parser.add_argument("--api-key", help="Groq API key")
+    parser.add_argument("--model", default="llama-3.1-8b-instant", help="Groq model to use")
     
     args = parser.parse_args()
     

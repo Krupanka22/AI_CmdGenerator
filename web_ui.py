@@ -27,9 +27,9 @@ from command_mapper import CommandMapper
 from executor import CommandExecutor
 
 try:
-    import google.generativeai as genai
+    from groq import Groq
 except ImportError:
-    genai = None
+    Groq = None
 
 try:
     from flask import Flask, render_template, request, jsonify, session
@@ -48,37 +48,22 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 command_mapper = CommandMapper()
 executor = CommandExecutor()
 
-# Initialize Gemini AI
-gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-if genai and gemini_api_key:
+# Initialize Groq AI
+groq_api_key = os.getenv("GROQ_API_KEY")
+groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+if Groq and groq_api_key:
     try:
-        genai.configure(api_key=gemini_api_key)
-        # Try different model names in order of preference
-        model_names = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-pro-latest']
-        gemini_model = None
-        
-        for model_name in model_names:
-            try:
-                gemini_model = genai.GenerativeModel(model_name)
-                print(f"✓ Gemini AI initialized successfully with model: {model_name}")
-                break
-            except Exception as model_error:
-                print(f"⚠ Model {model_name} not available: {model_error}")
-                continue
-        
-        if not gemini_model:
-            print("❌ No Gemini models available")
-            gemini_model = None
-            
+        groq_client = Groq(api_key=groq_api_key)
+        print(f"✓ Groq AI initialized successfully with model: {groq_model}")
     except Exception as e:
-        print(f"❌ Gemini AI initialization failed: {e}")
-        gemini_model = None
+        print(f"❌ Groq AI initialization failed: {e}")
+        groq_client = None
 else:
-    gemini_model = None
-    if not genai:
-        print("⚠ Google Generative AI not available")
-    if not gemini_api_key:
-        print("⚠ Gemini API key not found. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
+    groq_client = None
+    if not Groq:
+        print("⚠ Groq SDK not available")
+    if not groq_api_key:
+        print("⚠ Groq API key not found. Set GROQ_API_KEY environment variable")
 
 # Constants
 NO_MESSAGE_ERROR = 'No message provided'
@@ -86,11 +71,11 @@ NO_MESSAGE_ERROR = 'No message provided'
 # Chat history storage (in memory for web session)
 chat_history = []
 
-def extract_command_with_gemini(user_input: str) -> Dict:
-    """Extract command from text using Gemini AI."""
-    if not gemini_model:
+def extract_command_with_groq(user_input: str) -> Dict:
+    """Extract command from text using Groq Llama."""
+    if not groq_client:
         return {
-            'error': 'Gemini AI is not available. Please check your API key configuration.',
+            'error': 'Groq AI is not available. Please check your API key configuration.',
             'timestamp': datetime.datetime.now().isoformat()
         }
     
@@ -121,18 +106,26 @@ User input: {user_input}
 
 Extract the system command:"""
 
-        # Generate response using Gemini
-        response = gemini_model.generate_content(prompt)
+        # Generate response using Groq
+        response = groq_client.chat.completions.create(
+            model=groq_model,
+            messages=[
+                {"role": "system", "content": "You are a command line assistant that converts natural language to system commands."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=120,
+            temperature=0.1
+        )
         
-        if not response.text:
+        if not response.choices or not response.choices[0].message.content:
             return {
-                'error': 'Gemini AI did not return a response',
+                'error': 'Groq AI did not return a response',
                 'timestamp': datetime.datetime.now().isoformat()
             }
         
-        extracted_command = response.text.strip()
+        extracted_command = response.choices[0].message.content.strip()
         
-        # Check if Gemini found a command
+        # Check if Groq found a command
         if extracted_command == "NO_COMMAND_FOUND" or not extracted_command:
             return {
                 'message': '🤖 I couldn\'t extract a clear command from your text. Please try rephrasing with a specific action.',
@@ -146,7 +139,7 @@ Extract the system command:"""
         # Validate the command for safety
         if command_mapper._is_safe_command(extracted_command):
             return {
-                'message': '🤖 Gemini AI extracted command from your text:',
+                'message': '🤖 Groq Llama extracted command from your text:',
                 'mapped_command': extracted_command,
                 'user_input': user_input,
                 'timestamp': datetime.datetime.now().isoformat(),
@@ -156,7 +149,7 @@ Extract the system command:"""
             }
         else:
             return {
-                'message': f'🚫 Gemini AI extracted a potentially unsafe command: {extracted_command}',
+                'message': f'🚫 Groq Llama extracted a potentially unsafe command: {extracted_command}',
                 'mapped_command': None,
                 'user_input': user_input,
                 'timestamp': datetime.datetime.now().isoformat(),
@@ -167,7 +160,7 @@ Extract the system command:"""
             
     except Exception as e:
         return {
-            'error': f'Gemini AI error: {str(e)}',
+            'error': f'Groq AI error: {str(e)}',
             'timestamp': datetime.datetime.now().isoformat()
         }
 
@@ -278,24 +271,24 @@ def process_command(user_input: str) -> Dict:
             'success': False
         }
 
-@app.route('/api/gemini', methods=['POST'])
-def gemini_extract():
-    """Extract command from text using Gemini AI."""
+@app.route('/api/groq', methods=['POST'])
+def groq_extract():
+    """Extract command from text using Groq Llama."""
     data = request.get_json()
     user_input = data.get('message', '').strip()
     
     if not user_input:
         return jsonify({'error': NO_MESSAGE_ERROR})
     
-    # Extract command using Gemini
-    result = extract_command_with_gemini(user_input)
+    # Extract command using Groq
+    result = extract_command_with_groq(user_input)
     
     # Add to chat history
     chat_history.append({
         'user_input': user_input,
         'response': result,
         'timestamp': result.get('timestamp', datetime.datetime.now().isoformat()),
-        'type': 'gemini'
+        'type': 'groq'
     })
     
     return jsonify(result)
@@ -367,7 +360,7 @@ def get_help():
             "list kafka topics",
             "delete kafka topic my_topic"
         ],
-        'gemini_examples': [
+        'groq_examples': [
             "curl command to install redis",
             "how do I check if docker is running",
             "give me the command to find large files",
@@ -388,7 +381,7 @@ def get_help():
         'features': [
             "Natural language to command conversion",
             "Cross-platform support",
-            "AI-powered mapping (with OpenAI API)",
+            "AI-powered mapping (with Groq API)",
             "Fallback pattern matching",
             "Safe command execution",
             "Command history tracking"

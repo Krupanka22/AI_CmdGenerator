@@ -168,6 +168,35 @@
             word-break: break-all;
         }
 
+        .command-edit {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .command-edit label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+        }
+
+        .command-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #495057;
+            background: #ffffff;
+        }
+
+        .command-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+        }
+
         .url-command {
             display: flex;
             flex-direction: column;
@@ -320,7 +349,7 @@
             transform: none;
         }
 
-        .gemini-btn {
+        .groq-btn {
             padding: 15px 25px;
             background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
             color: white;
@@ -334,12 +363,12 @@
             box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
         }
 
-        .gemini-btn:hover {
+        .groq-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
         }
 
-        .gemini-btn:disabled {
+        .groq-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -381,18 +410,18 @@
             border-color: #667eea;
         }
 
-        .gemini-example {
+        .groq-example {
             background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
             border: 1px solid #ff9800;
             position: relative;
         }
 
-        .gemini-example:hover {
+        .groq-example:hover {
             background: linear-gradient(135deg, #ffecb3 0%, #ffd54f 100%);
             border-color: #f57c00;
         }
 
-        .gemini-example::before {
+        .groq-example::before {
             content: "✨";
             position: absolute;
             top: 5px;
@@ -542,9 +571,9 @@
                     <!-- Examples will be loaded here -->
                 </div>
                 
-                <h4>✨ Try with Gemini AI (Gemini AI button):</h4>
-                <div class="examples-grid" id="gemini-examples-grid">
-                    <!-- Gemini examples will be loaded here -->
+                <h4>✨ Try with Groq Llama (Groq button):</h4>
+                <div class="examples-grid" id="groq-examples-grid">
+                    <!-- Groq examples will be loaded here -->
                 </div>
                 
                 <div class="action-buttons">
@@ -577,7 +606,7 @@
             <div class="input-group">
                 <input type="text" class="chat-input" id="message-input" placeholder="Type your command here..." onkeypress="handleKeyPress(event)">
                 <button class="send-btn" onclick="sendMessage()" id="send-btn">Send</button>
-                <button class="gemini-btn" onclick="sendToGemini()" id="gemini-btn">✨ Gemini AI</button>
+                <button class="groq-btn" onclick="sendToGroq()" id="groq-btn">✨ Groq Llama</button>
             </div>
         </div>
     </div>
@@ -592,7 +621,7 @@
         const chatHistory = document.getElementById('chat-history');
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
-        const geminiBtn = document.getElementById('gemini-btn');
+        const groqBtn = document.getElementById('groq-btn');
         const typingIndicator = document.getElementById('typing-indicator');
         const statusText = document.getElementById('status-text');
 
@@ -633,7 +662,7 @@
             socket.emit('send_message', { message: message });
         }
 
-        function sendToGemini() {
+        function sendToGroq() {
             const message = messageInput.value.trim();
             if (!message) return;
 
@@ -647,11 +676,11 @@
             showTyping();
             
             // Disable buttons during processing
-            geminiBtn.disabled = true;
+            groqBtn.disabled = true;
             sendBtn.disabled = true;
             
-            // Send to Gemini API
-            fetch('/api/gemini', {
+            // Send to Groq API
+            fetch('/api/groq', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -663,7 +692,7 @@
             .then(response => response.json())
             .then(data => {
                 hideTyping();
-                geminiBtn.disabled = false;
+                groqBtn.disabled = false;
                 sendBtn.disabled = false;
                 
                 if (data.error) {
@@ -674,7 +703,7 @@
             })
             .catch(error => {
                 hideTyping();
-                geminiBtn.disabled = false;
+                groqBtn.disabled = false;
                 sendBtn.disabled = false;
                 addErrorMessage('Network error: ' + error.message);
             });
@@ -1004,7 +1033,10 @@
                     return `
                         <div class="command-display">
                             <div class="url-command">
-                                <span class="command-text">${escapeHtml(command)}</span>
+                                <div class="command-edit">
+                                    <label>Edit command before executing</label>
+                                    <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or rm -i file.txt)">
+                                </div>
                                 <div class="url-preview">
                                     <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="url-link">
                                         🔗 ${escapeHtml(url)}
@@ -1017,7 +1049,14 @@
             }
             
             // For non-URL commands, return regular display
-            return `<div class="command-display">${escapeHtml(command)}</div>`;
+            return `
+                <div class="command-display">
+                    <div class="command-edit">
+                        <label>Edit command before executing</label>
+                        <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or rm -i file.txt)">
+                    </div>
+                </div>
+            `;
         }
 
         function loadExamples() {
@@ -1030,11 +1069,11 @@
                         `<div class="example-item" onclick="useExample('${example}')">${escapeHtml(example)}</div>`
                     ).join('');
                     
-                    // Load Gemini examples
-                    const geminiExamplesGrid = document.getElementById('gemini-examples-grid');
-                    if (data.gemini_examples) {
-                        geminiExamplesGrid.innerHTML = data.gemini_examples.map(example => 
-                            `<div class="example-item gemini-example" onclick="useGeminiExample('${example}')">${escapeHtml(example)}</div>`
+                    // Load Groq examples
+                    const groqExamplesGrid = document.getElementById('groq-examples-grid');
+                    if (data.groq_examples) {
+                        groqExamplesGrid.innerHTML = data.groq_examples.map(example => 
+                            `<div class="example-item groq-example" onclick="useGroqExample('${example}')">${escapeHtml(example)}</div>`
                         ).join('');
                     }
                 })
@@ -1046,11 +1085,11 @@
             messageInput.focus();
         }
 
-        function useGeminiExample(example) {
+        function useGroqExample(example) {
             messageInput.value = example;
             messageInput.focus();
-            // Optionally, you could automatically trigger Gemini here
-            // sendToGemini();
+            // Optionally, you could automatically trigger Groq here
+            // sendToGroq();
         }
 
         function clearHistory() {
@@ -1106,8 +1145,14 @@
         // Add event listeners for dynamic buttons
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('execute-btn')) {
-                const command = e.target.getAttribute('data-command');
+                const messageContent = e.target.closest('.message-content');
+                const editedInput = messageContent ? messageContent.querySelector('.command-input') : null;
+                const command = editedInput ? editedInput.value.trim() : e.target.getAttribute('data-command');
                 const userInput = e.target.getAttribute('data-user-input');
+                if (!command) {
+                    addErrorMessage('Please enter a command before executing.');
+                    return;
+                }
                 executeCommand(command, userInput);
             } else if (e.target.classList.contains('skip-btn')) {
                 skipExecution();

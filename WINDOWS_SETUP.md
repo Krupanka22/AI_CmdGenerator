@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ### 3. Environment Setup
 Create a `.env` file in the project root:
 ```
-OPENAI_API_KEY=your_openai_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ## 🔧 Windows-Specific Considerations
