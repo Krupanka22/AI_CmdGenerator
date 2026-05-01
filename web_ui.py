@@ -54,16 +54,16 @@ groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 if Groq and groq_api_key:
     try:
         groq_client = Groq(api_key=groq_api_key)
-        print(f"✓ Groq AI initialized successfully with model: {groq_model}")
+        print(f"[OK] Groq AI initialized successfully with model: {groq_model}")
     except Exception as e:
-        print(f"❌ Groq AI initialization failed: {e}")
+        print(f"[ERROR] Groq AI initialization failed: {e}")
         groq_client = None
 else:
     groq_client = None
     if not Groq:
-        print("⚠ Groq SDK not available")
+        print("[WARN] Groq SDK not available")
     if not groq_api_key:
-        print("⚠ Groq API key not found. Set GROQ_API_KEY environment variable")
+        print("[WARN] Groq API key not found. Set GROQ_API_KEY environment variable")
 
 # Constants
 NO_MESSAGE_ERROR = 'No message provided'
@@ -82,29 +82,30 @@ def extract_command_with_groq(user_input: str) -> Dict:
     try:
         # Create a prompt for command extraction
         prompt = f"""
-You are a command line assistant that converts natural language to system commands.
-Current platform: {command_mapper.system}
+You are a Windows command line assistant that converts natural language to Windows CMD or PowerShell commands.
+Current platform: Windows
 
 Rules:
-1. Extract ONLY the system command from the user's text, no explanations
-2. Use platform-appropriate commands
-3. For macOS, use 'open -a' for applications
-4. For Windows, use 'start' for applications  
-5. For Linux, use direct command names
-6. For web searches, return a command that opens the browser
-7. Be safe - avoid dangerous commands like 'rm -rf /'
-8. If the text doesn't contain a clear command request, return "NO_COMMAND_FOUND"
+1. Extract ONLY the Windows command from the user's text, no explanations
+2. Use ONLY Windows CMD or PowerShell commands
+3. For opening applications, use 'start' command
+4. For web searches, use 'start' to open URLs in the default browser
+5. Be safe - avoid dangerous commands like 'format', 'del /f /s /q C:\\'
+6. If the text doesn't contain a clear command request, return "NO_COMMAND_FOUND"
+7. NEVER return Linux (ls, rm, grep) or macOS (open -a, pbcopy) commands
 
 Examples:
-- "open chrome" → open -a "Google Chrome"
-- "list ports with 8085" → lsof -i tcp:8085
-- "kill port 8085" → kill -9 $(lsof -t -i tcp:8085)
-- "search for weather" → open "https://www.google.com/search?q=weather"
-- "show date" → date
+- "open chrome" → start chrome
+- "list files" → dir
+- "create a file" → echo. > newfile.txt
+- "search for weather" → start https://www.google.com/search?q=weather
+- "show date" → date /t
+- "check ports" → netstat -an
+- "kill process 1234" → taskkill /PID 1234 /F
 
 User input: {user_input}
 
-Extract the system command:"""
+Extract the Windows command:"""
 
         # Generate response using Groq
         response = groq_client.chat.completions.create(
@@ -216,30 +217,18 @@ def process_command(user_input: str) -> Dict:
                 'success': False
             }
         
-        # Check if this is an intelligent command (Python script)
-        is_intelligent_command = mapped_command.startswith('python -c')
-        
         # Check if this is a command listing request
         is_command_listing = any(keyword in user_input.lower() for keyword in ['list all commands', 'show all commands', 'help commands'])
-        is_redis_listing = any(keyword in user_input.lower() for keyword in ['list redis commands', 'show redis commands'])
         
         # Check if there was a spelling correction
         if suggested_correction:
-            if is_redis_listing:
-                message = f"I think you meant: '{suggested_correction}'\n\nI'll show you all Redis commands."
-            elif is_command_listing:
+            if is_command_listing:
                 message = f"I think you meant: '{suggested_correction}'\n\nI'll show you all available commands organized by category."
-            elif is_intelligent_command:
-                message = f"I think you meant: '{suggested_correction}'\n\nI'll check Redis sentinel status and start it if needed."
             else:
                 message = f"I think you meant: '{suggested_correction}'\n\nI'll execute: {mapped_command}"
         else:
-            if is_redis_listing:
-                message = "I'll show you all Redis commands."
-            elif is_command_listing:
+            if is_command_listing:
                 message = "I'll show you all available commands organized by category."
-            elif is_intelligent_command:
-                message = f"I'll check Redis sentinel status and start it if needed."
             else:
                 message = f"I'll execute: {mapped_command}"
         
@@ -255,9 +244,7 @@ def process_command(user_input: str) -> Dict:
             'success': True,
             'needs_confirmation': True,
             'suggested_correction': suggested_correction,
-            'is_intelligent_command': is_intelligent_command,
-            'is_command_listing': is_command_listing,
-            'is_redis_listing': is_redis_listing
+            'is_command_listing': is_command_listing
         }
         
     except Exception as e:
@@ -341,46 +328,43 @@ def get_help():
     help_data = {
         'examples': [
             "open chrome",
-            "list all ports with 8085",
+            "list files in current directory",
+            "create a file called test.txt",
+            "create a folder called MyFolder",
+            "delete a file",
             "check wifi status",
             "search for weather in London",
-            "list files in current directory",
             "what is the current time",
             "display current date",
-            "start redis sentinel",
-            "start redis server",
-            "check redis status",
-            "check redis sentinel status",
             "check RAM status",
             "check cpu usage",
+            "check disk space",
             "list all commands",
-            "list redis commands",
-            "start zookeeper",
-            "start kafka",
-            "list kafka topics",
-            "delete kafka topic my_topic"
+            "shutdown my computer",
+            "check system info",
+            "open task manager"
         ],
         'groq_examples': [
-            "curl command to install redis",
-            "how do I check if docker is running",
-            "give me the command to find large files",
-            "show me how to compress a folder",
-            "what's the command to kill a process by name",
-            "how to check disk usage in human readable format",
-            "command to download a file from URL",
-            "how to create a new directory recursively",
-            "show me the command to find my IP address",
-            "how to check which ports are listening",
-            "command to search for text in files",
-            "how to monitor system resources in real time",
-            "show me how to backup a database",
-            "command to extract a tar.gz file",
+            "how to find large files on Windows",
+            "command to compress a folder in PowerShell",
+            "how to kill a process by name on Windows",
+            "check disk usage in human readable format",
+            "download a file from URL using PowerShell",
+            "create a new directory recursively",
+            "find my IP address on Windows",
+            "check which ports are listening",
+            "search for text in files using findstr",
+            "how to monitor system resources in task manager",
             "how to check git status and branches",
-            "show me how to restart a service"
+            "how to restart a Windows service",
+            "list all running services on Windows",
+            "how to flush DNS cache",
+            "how to check Windows version",
+            "how to export environment variables"
         ],
         'features': [
-            "Natural language to command conversion",
-            "Cross-platform support",
+            "Natural language to Windows command conversion",
+            "Windows CMD & PowerShell support",
             "AI-powered mapping (with Groq API)",
             "Fallback pattern matching",
             "Safe command execution",
@@ -438,14 +422,14 @@ if __name__ == '__main__':
     # Find a free port
     try:
         port = find_free_port()
-        print("🤖 AI Command Generator - Web UI")
+        print("AI Command Generator - Web UI")
         print("=" * 40)
         print(f"Platform: {command_mapper.system}")
         print(f"AI Available: {command_mapper.use_ai}")
         print(f"Server starting on http://localhost:{port}")
         print("Press Ctrl+C to stop")
         
-        socketio.run(app, debug=True, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+        socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
     except RuntimeError as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR]: {e}")
         sys.exit(1) 

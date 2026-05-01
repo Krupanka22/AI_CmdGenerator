@@ -748,24 +748,13 @@
             }
             
             if (data.mapped_command) {
-                // Don't show the raw command for intelligent commands, command listing, or redis listing
-                if (!data.is_intelligent_command && !data.is_command_listing && !data.is_redis_listing) {
+                // Don't show the raw command for command listing
+                if (!data.is_command_listing) {
                     content += formatCommandDisplay(data.mapped_command);
                 }
                 
                 if (data.needs_confirmation) {
-                    if (data.is_redis_listing) {
-                        content += `
-                            <div class="action-buttons">
-                                <button class="btn btn-primary show-redis-commands-btn">
-                                    🔴 Show Redis Commands
-                                </button>
-                                <button class="btn btn-secondary skip-btn">
-                                    ⏭️ Skip
-                                </button>
-                            </div>
-                        `;
-                    } else if (data.is_command_listing) {
+                    if (data.is_command_listing) {
                         content += `
                             <div class="action-buttons">
                                 <button class="btn btn-primary show-commands-btn">
@@ -777,8 +766,8 @@
                             </div>
                         `;
                     } else {
-                        // Check if it's a URL command for special handling
-                        const urlMatch = data.mapped_command.match(/open\s+"([^"]+)"/i) || data.mapped_command.match(/open\s+([^\s]+)/i);
+                        // Check if it's a URL command for special handling (Windows uses 'start' to open URLs)
+                        const urlMatch = data.mapped_command.match(/start\s+"([^"]+)"/i) || data.mapped_command.match(/start\s+(https?:\/\/[^\s]+)/i) || data.mapped_command.match(/open\s+"([^"]+)"/i) || data.mapped_command.match(/open\s+([^\s]+)/i);
                         const isUrlCommand = urlMatch && urlMatch[1] && (urlMatch[1].startsWith('http://') || urlMatch[1].startsWith('https://'));
                         
                         if (isUrlCommand) {
@@ -863,22 +852,12 @@
                 if (data.type === 'execution_result') {
                     const resultMessage = data.success ? data.output : data.error;
                     
-                    // For intelligent commands, show the result directly
-                    if (command.startsWith('python -c')) {
-                        addBotMessage({
-                            message: resultMessage || '✅ Redis sentinel operation completed',
-                            execution_result: null,
-                            success: data.success,
-                            timestamp: data.timestamp
-                        });
-                    } else {
-                        addBotMessage({
-                            message: data.success ? '✅ Command executed successfully!' : '❌ Command failed',
-                            execution_result: resultMessage,
-                            success: data.success,
-                            timestamp: data.timestamp
-                        });
-                    }
+                    addBotMessage({
+                        message: data.success ? '✅ Command executed successfully!' : '❌ Command failed',
+                        execution_result: resultMessage,
+                        success: data.success,
+                        timestamp: data.timestamp
+                    });
                 } else {
                     addErrorMessage(data.error || 'Execution failed');
                 }
@@ -945,57 +924,7 @@
                 });
         }
 
-        function showRedisCommands() {
-            fetch('/api/commands')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        addErrorMessage(data.error);
-                        return;
-                    }
-                    
-                    // Filter only Redis commands
-                    const redisCommands = data.categories['Redis Operations'] || [];
-                    
-                    let content = `<div class="commands-overview" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-                        <h3>🔴 Redis Commands (${redisCommands.length} total)</h3>
-                        <p>Here are all the Redis-related commands:</p>
-                    </div>`;
-                    
-                    if (redisCommands.length > 0) {
-                        content += `<div class="command-category">
-                            <h4>Redis Operations</h4>
-                            <div class="command-list">`;
-                        
-                        redisCommands.forEach(cmd => {
-                            content += `<div class="command-item" onclick="useExample('${cmd.example}')">
-                                <div class="command-example">${escapeHtml(cmd.example)}</div>
-                                <div class="command-description">${escapeHtml(cmd.description)}</div>
-                            </div>`;
-                        });
-                        
-                        content += `</div></div>`;
-                    } else {
-                        content += `<div class="command-category">
-                            <h4>No Redis Commands Found</h4>
-                            <div class="command-list">
-                                <div class="command-item">
-                                    <div class="command-example">No Redis commands available</div>
-                                    <div class="command-description">Try adding Redis commands to the system</div>
-                                </div>
-                            </div>
-                        </div>`;
-                    }
-                    
-                    addBotMessage({
-                        message: content,
-                        timestamp: new Date().toISOString()
-                    });
-                })
-                .catch(error => {
-                    addErrorMessage('Error loading Redis commands: ' + error.message);
-                });
-        }
+
 
         function showTyping() {
             typingIndicator.style.display = 'flex';
@@ -1023,19 +952,18 @@
         }
 
         function formatCommandDisplay(command) {
-            // Check if the command is a URL opening command
-            const urlMatch = command.match(/open\s+"([^"]+)"/i) || command.match(/open\s+([^\s]+)/i);
+            // Check if the command is a URL opening command (Windows uses 'start' for URLs)
+            const urlMatch = command.match(/start\s+(https?:\/\/[^\s]+)/i) || command.match(/start\s+"([^"]+)"/i);
             
             if (urlMatch && urlMatch[1]) {
                 const url = urlMatch[1];
-                // Check if it's a valid URL
                 if (url.startsWith('http://') || url.startsWith('https://')) {
                     return `
                         <div class="command-display">
                             <div class="url-command">
                                 <div class="command-edit">
                                     <label>Edit command before executing</label>
-                                    <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or rm -i file.txt)">
+                                    <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or mkdir NewFolder)">
                                 </div>
                                 <div class="url-preview">
                                     <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="url-link">
@@ -1053,7 +981,7 @@
                 <div class="command-display">
                     <div class="command-edit">
                         <label>Edit command before executing</label>
-                        <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or rm -i file.txt)">
+                        <input type="text" class="command-input" value="${escapeHtml(command)}" placeholder="Edit command here (example: del file.txt or mkdir NewFolder)">
                     </div>
                 </div>
             `;
@@ -1158,8 +1086,6 @@
                 skipExecution();
             } else if (e.target.classList.contains('show-commands-btn')) {
                 showAllCommands();
-            } else if (e.target.classList.contains('show-redis-commands-btn')) {
-                showRedisCommands();
             } else if (e.target.classList.contains('open-link-btn')) {
                 const url = e.target.getAttribute('data-url');
                 openLink(url);
