@@ -220,29 +220,33 @@ def process_command(user_input: str) -> Dict:
         # Check if this is a command listing request
         is_command_listing = any(keyword in user_input.lower() for keyword in ['list all commands', 'show all commands', 'help commands'])
         
-        # Check if there was a spelling correction
-        if suggested_correction:
-            if is_command_listing:
-                message = f"I think you meant: '{suggested_correction}'\n\nI'll show you all available commands organized by category."
+        # Execute the command automatically (unless it's just a command listing request)
+        execution_output = None
+        exec_success = True
+        if mapped_command and not is_command_listing:
+            # For web searches/URL openings with 'start', we still want the UI to handle it specially
+            # But for regular commands, execute them now
+            exec_res = executor.execute(mapped_command, user_input)
+            execution_output = exec_res.output if exec_res.success else exec_res.error
+            exec_success = exec_res.success
+            
+            if suggested_correction:
+                message = f"I think you meant: '{suggested_correction}'\n\nAutomatically executed: {mapped_command}"
             else:
-                message = f"I think you meant: '{suggested_correction}'\n\nI'll execute: {mapped_command}"
+                message = f"Automatically executed: {mapped_command}"
         else:
             if is_command_listing:
                 message = "I'll show you all available commands organized by category."
-            else:
-                message = f"I'll execute: {mapped_command}"
         
-        # For web UI, we'll show the command but not execute it automatically
-        # User can choose to execute via a separate action
         return {
             'type': 'command_mapped',
             'message': message,
             'timestamp': datetime.datetime.now().isoformat(),
             'user_input': user_input,
             'mapped_command': mapped_command,
-            'execution_result': None,
-            'success': True,
-            'needs_confirmation': True,
+            'execution_result': execution_output,
+            'success': exec_success,
+            'needs_confirmation': False,
             'suggested_correction': suggested_correction,
             'is_command_listing': is_command_listing
         }
