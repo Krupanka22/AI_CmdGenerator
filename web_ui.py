@@ -348,24 +348,7 @@ def get_help():
             "color 0A",
             "title My CMD Window"
         ],
-        'groq_examples': [
-            "how to find large files on Windows",
-            "command to compress a folder in PowerShell",
-            "how to kill a process by name on Windows",
-            "check disk usage in human readable format",
-            "download a file from URL using PowerShell",
-            "create a new directory recursively",
-            "find my IP address on Windows",
-            "check which ports are listening",
-            "search for text in files using findstr",
-            "how to monitor system resources in task manager",
-            "how to check git status and branches",
-            "how to restart a Windows service",
-            "list all running services on Windows",
-            "how to flush DNS cache",
-            "how to check Windows version",
-            "how to export environment variables"
-        ],
+        'groq_examples': [],
         'features': [
             "Natural language to Windows command conversion",
             "Windows CMD & PowerShell support",

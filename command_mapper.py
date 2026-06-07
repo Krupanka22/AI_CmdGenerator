@@ -42,14 +42,7 @@ class CommandMapper:
             print("Warning: Groq not available. Using fallback pattern matching only.")
         
         self.fallback_patterns = self._load_fallback_patterns()
-        self.app_mappings = {
-            "chrome": {"windows": "start chrome"},
-            "firefox": {"windows": "start firefox"},
-            "vscode": {"windows": "code"},
-            "edge": {"windows": "start msedge"},
-            "notepad": {"windows": "notepad"},
-            "calculator": {"windows": "calc"},
-        }
+        self.app_mappings = {}
     
     def map_to_command(self, user_input: str) -> Optional[str]:
         user_input = user_input.strip().lower()
@@ -159,99 +152,66 @@ Examples:
     
     def _load_fallback_patterns(self) -> Dict:
         return {
-            # File operations
-            r"(create|make)\s+(a\s+)?(new\s+)?file\s+(called\s+)?(\S+)": lambda m: f"echo. > {m.group(5)}",
-            r"(i\s+want\s+to\s+)?create\s+(a\s+)?file": "echo. > newfile.txt",
+            # System Identity
+            r"^ver$": "ver",
+            r"(check|show|what)\s*(is\s+)?(my\s+)?windows\s+version": "ver",
+            r"^hostname$": "hostname",
+            r"^whoami$": "whoami",
+            
+            # Date & Time
+            r"^date$": "date /t",
+            r"show.*date": "date /t",
+            r"what.*date": "date /t",
+            r"display.*date": "date /t",
+            r"today.*date": "date /t",
+            r"^time$": "time /t",
+            r"current.*time": "time /t",
+            r"what.*time": "time /t",
+            r"display.*time": "time /t",
+            
+            # Screen & Console
+            r"^cls$": "cls",
+            r"clear\s+the\s+screen": "cls",
+            r"^color\s+0a$": "color 0A",
+            r"^title\s+my\s+cmd\s+window$": "title My CMD Window",
+            
+            # Directory Listing
+            r"^dir$": "dir",
             r"list\s*(all\s+)?files": "dir",
             r"(i\s+want\s+to\s+)?list\s+files": "dir",
             r"show\s*(all\s+)?files": "dir",
-            r"(create|make)\s+(a\s+)?(new\s+)?folder\s+(called\s+)?(\S+)": lambda m: f"mkdir {m.group(5)}",
-            r"(i\s+want\s+to\s+)?create\s+(a\s+)?folder": "mkdir NewFolder",
-            r"(remove|delete)\s+folder\s+(\S+)": lambda m: f"rmdir {m.group(2)}",
-            r"(i\s+want\s+to\s+)?delete\s+(a\s+)?folder": "rmdir FolderName",
-            r"(remove|delete)\s+file\s+(\S+)": lambda m: f"del {m.group(2)}",
-            r"(i\s+want\s+to\s+)?delete\s+(a\s+)?file": "del filename.txt",
-            r"copy\s+file\s+(\S+)\s+to\s+(\S+)": lambda m: f"copy {m.group(1)} {m.group(2)}",
-            r"move\s+file\s+(\S+)\s+to\s+(\S+)": lambda m: f"move {m.group(1)} {m.group(2)}",
-            r"rename\s+(\S+)\s+to\s+(\S+)": lambda m: f"rename {m.group(1)} {m.group(2)}",
-            r"current\s*directory": "cd",
-            r"where\s+am\s+i": "cd",
-            # Port operations
-            r"list.*port.*(\d{4,5})": lambda m: f"netstat -ano | findstr :{m.group(1)}",
-            r"kill.*port.*(\d{4,5})": lambda m: f"for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :{m.group(1)}') do taskkill /PID %a /F",
-            r"find.*port.*(\d{4,5})": lambda m: f"netstat -ano | findstr :{m.group(1)}",
-            r"check.*ports": "netstat -an",
-            # Applications
-            r"open\s+chrome": "start chrome",
-            r"open\s+firefox": "start firefox",
-            r"open\s+edge": "start msedge",
-            r"open\s+vscode": "code",
-            r"start\s+notepad": "notepad",
-            r"open\s+notepad": "notepad",
-            r"open\s+calculator": "calc",
-            r"open\s+task\s*manager": "taskmgr",
-            r"open\s+paint": "mspaint",
-            r"open\s+explorer": "explorer",
-            r"open\s+control\s+panel": "control",
-            r"open\s+cmd": "start cmd",
-            r"open\s+powershell": "start powershell",
-            # Web services
-            r"(open|launch|go\s+to)\s+youtube": "start https://www.youtube.com",
-            r"search\s+youtube\s+for\s+(.+)": lambda m: f'start https://www.youtube.com/results?search_query={m.group(1).replace(" ", "+")}',
-            r"(open|launch|check)\s+gmail": "start https://mail.google.com",
-            r"(open|launch|go\s+to)\s+facebook": "start https://www.facebook.com",
-            r"(open|launch|go\s+to)\s+instagram": "start https://www.instagram.com",
-            r"(open|launch|go\s+to)\s+twitter": "start https://twitter.com",
-            r"(open|launch|play)\s+spotify": "start https://open.spotify.com",
-            r"(open|launch|go\s+to)\s+reddit": "start https://www.reddit.com",
-            r"(open|launch)\s+whatsapp\s+web": "start https://web.whatsapp.com",
-            r"search.*weather.*in\s+([a-zA-Z\s]+)": lambda m: f'start https://www.google.com/search?q=weather+in+{m.group(1).replace(" ", "+")}',
-            r"search.*for\s+([a-zA-Z\s]+)": lambda m: f'start https://www.google.com/search?q={m.group(1).replace(" ", "+")}',
-            r"google\s+([a-zA-Z\s]+)": lambda m: f'start https://www.google.com/search?q={m.group(1).replace(" ", "+")}',
-            # System info
-            r"check\s+system\s+info": "systeminfo",
-            r"check\s+cpu\s+usage": "wmic cpu get loadpercentage",
-            r"check\s+(memory|ram)\s+(usage|status)": "systeminfo | findstr /C:\"Total Physical Memory\" /C:\"Available Physical Memory\"",
-            r"disk\s*space": "wmic logicaldisk get size,freespace,caption",
-            r"check\s+disk": "wmic logicaldisk get size,freespace,caption",
-            # Network
-            r"connect\s+(to\s+)?wifi\s+(\S+)": lambda m: f'netsh wlan connect name="{m.group(2)}"',
-            r"disconnect\s+(from\s+)?wifi": "netsh wlan disconnect",
-            r"list\s+available\s+wifi": "netsh wlan show networks",
-            r"check.*wifi": "netsh wlan show interfaces",
-            r"wifi.*status": "netsh wlan show interfaces",
+            
+            # Networking
+            r"^ipconfig$": "ipconfig",
             r"network.*status": "ipconfig",
             r"ip\s*address": "ipconfig",
-            r"flush\s+dns": "ipconfig /flushdns",
-            # Date & Time
-            r"show.*date": "date /t",
-            r"what.*date": "date /t",
-            r"current.*time": "time /t",
-            r"what.*time": "time /t",
-            r"display.*date": "date /t",
-            r"display.*time": "time /t",
-            r"today.*date": "date /t",
-            r"check\s+date\s+and\s+time": "date /t & time /t",
-            # Process management
+            r"^netstat$": "netstat",
+            r"check.*ports": "netstat",
+            r"^getmac$": "getmac",
+            r"^nslookup\s+google\.com$": "nslookup google.com",
+            r"^ping\s+localhost$": "ping localhost",
+            
+            # System Information & Processes
+            r"^systeminfo$": "systeminfo",
+            r"check\s+system\s+info": "systeminfo",
+            r"^tasklist$": "tasklist",
             r"list.*processes": "tasklist",
             r"show.*processes": "tasklist",
-            r"kill.*process.*(\d+)": lambda m: f"taskkill /PID {m.group(1)} /F",
-            r"list.*services": "net start",
-            # System control
-            r"shutdown\s+(my\s+)?computer": "shutdown /s /t 0",
-            r"restart\s+(my\s+)?(pc|computer)": "shutdown /r /t 0",
-            r"sleep\s+(my\s+)?computer": "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
-            r"lock\s+(my\s+)?(pc|computer|screen)": "rundll32.exe user32.dll,LockWorkStation",
-            r"clear\s+the\s+screen": "cls",
+            r"^driverquery$": "driverquery",
+            
+            # Environment & Configuration
+            r"^set$": "set",
+            r"environment\s+variables": "set",
+            r"^path$": "path",
+            r"^assoc$": "assoc",
+            
             # Help
             r"list\s*(all\s+)?commands": "echo Use 'list all commands' in the chat to see available commands",
             r"show\s*(all\s+)?commands": "echo Use 'show all commands' in the chat to see available commands",
             r"help\s*commands": "echo Use 'help commands' in the chat to see available commands",
-            # Windows version
-            r"(check|show|what)\s*(is\s+)?(my\s+)?windows\s+version": "winver",
-            r"environment\s+variables": "set",
         }
     
+
     def _is_safe_command(self, command: str) -> bool:
         dangerous = [
             r"format\s+[a-zA-Z]:", r"del\s+/[sfq].*[a-zA-Z]:\\",

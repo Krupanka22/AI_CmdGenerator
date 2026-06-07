@@ -566,14 +566,8 @@
                 <h3>💡 How to use</h3>
                 <p>Type your request in natural language and I'll convert it to a system command.</p>
                 
-                <h4>🤖 Try with Regular AI (Send button):</h4>
                 <div class="examples-grid" id="examples-grid">
                     <!-- Examples will be loaded here -->
-                </div>
-                
-                <h4>✨ Try with Groq Llama (Groq button):</h4>
-                <div class="examples-grid" id="groq-examples-grid">
-                    <!-- Groq examples will be loaded here -->
                 </div>
                 
                 <div class="action-buttons">
@@ -606,7 +600,6 @@
             <div class="input-group">
                 <input type="text" class="chat-input" id="message-input" placeholder="Type your command here..." onkeypress="handleKeyPress(event)">
                 <button class="send-btn" onclick="sendMessage()" id="send-btn">Send</button>
-                <button class="groq-btn" onclick="sendToGroq()" id="groq-btn">✨ Groq Llama</button>
             </div>
         </div>
     </div>
@@ -996,14 +989,6 @@
                     examplesGrid.innerHTML = data.examples.map(example => 
                         `<div class="example-item" onclick="useExample('${example}')">${escapeHtml(example)}</div>`
                     ).join('');
-                    
-                    // Load Groq examples
-                    const groqExamplesGrid = document.getElementById('groq-examples-grid');
-                    if (data.groq_examples) {
-                        groqExamplesGrid.innerHTML = data.groq_examples.map(example => 
-                            `<div class="example-item groq-example" onclick="useGroqExample('${example}')">${escapeHtml(example)}</div>`
-                        ).join('');
-                    }
                 })
                 .catch(error => console.error('Error loading examples:', error));
         }
