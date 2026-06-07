@@ -272,73 +272,39 @@ Examples:
     
     def get_commands_by_category(self) -> Dict[str, List[Dict[str, str]]]:
         categories = {
-            "File Operations": [
-                {"example": "create a file called test.txt", "description": "Create a new file", "command": "echo. > test.txt"},
-                {"example": "list files", "description": "List files in current directory", "command": "dir"},
-                {"example": "create folder called MyFolder", "description": "Create a new folder", "command": "mkdir MyFolder"},
-                {"example": "delete folder MyFolder", "description": "Remove a folder", "command": "rmdir MyFolder"},
-                {"example": "delete file test.txt", "description": "Delete a file", "command": "del test.txt"},
-                {"example": "copy file a.txt to b.txt", "description": "Copy a file", "command": "copy a.txt b.txt"},
-                {"example": "move file a.txt to folder\\", "description": "Move a file", "command": "move a.txt folder\\"},
-                {"example": "rename old.txt to new.txt", "description": "Rename a file", "command": "rename old.txt new.txt"},
-                {"example": "where am i", "description": "Show current directory", "command": "cd"},
-            ],
-            "System Information": [
-                {"example": "check system info", "description": "Show system information", "command": "systeminfo"},
-                {"example": "check cpu usage", "description": "Check CPU load", "command": "wmic cpu get loadpercentage"},
-                {"example": "check RAM status", "description": "Check memory usage", "command": "systeminfo | findstr /C:\"Total Physical Memory\""},
-                {"example": "check disk space", "description": "Show disk space", "command": "wmic logicaldisk get size,freespace,caption"},
-                {"example": "check Windows version", "description": "Show Windows version", "command": "winver"},
-                {"example": "environment variables", "description": "List environment variables", "command": "set"},
-            ],
-            "Network & WiFi": [
-                {"example": "check wifi status", "description": "Show WiFi interface info", "command": "netsh wlan show interfaces"},
-                {"example": "list available wifi networks", "description": "Scan WiFi networks", "command": "netsh wlan show networks"},
-                {"example": "connect to wifi MyNetwork", "description": "Connect to a WiFi network", "command": "netsh wlan connect name=\"MyNetwork\""},
-                {"example": "disconnect from wifi", "description": "Disconnect WiFi", "command": "netsh wlan disconnect"},
-                {"example": "check network status", "description": "Show IP configuration", "command": "ipconfig"},
-                {"example": "flush dns", "description": "Flush DNS cache", "command": "ipconfig /flushdns"},
-            ],
-            "Port Operations": [
-                {"example": "list port 8085", "description": "Find process on a port", "command": "netstat -ano | findstr :8085"},
-                {"example": "check ports", "description": "Show all ports", "command": "netstat -an"},
-                {"example": "kill port 8085", "description": "Kill process on a port", "command": "Dynamic command"},
-            ],
-            "Applications": [
-                {"example": "open chrome", "description": "Open Google Chrome", "command": "start chrome"},
-                {"example": "open firefox", "description": "Open Firefox", "command": "start firefox"},
-                {"example": "open edge", "description": "Open Microsoft Edge", "command": "start msedge"},
-                {"example": "open vscode", "description": "Open VS Code", "command": "code"},
-                {"example": "open notepad", "description": "Open Notepad", "command": "notepad"},
-                {"example": "open calculator", "description": "Open Calculator", "command": "calc"},
-                {"example": "open task manager", "description": "Open Task Manager", "command": "taskmgr"},
-                {"example": "open paint", "description": "Open Paint", "command": "mspaint"},
-                {"example": "open explorer", "description": "Open File Explorer", "command": "explorer"},
-                {"example": "open control panel", "description": "Open Control Panel", "command": "control"},
-            ],
-            "Web Services": [
-                {"example": "open youtube", "description": "Open YouTube", "command": "start https://www.youtube.com"},
-                {"example": "open gmail", "description": "Open Gmail", "command": "start https://mail.google.com"},
-                {"example": "open facebook", "description": "Open Facebook", "command": "start https://www.facebook.com"},
-                {"example": "search for weather in London", "description": "Search Google", "command": "Dynamic command"},
-                {"example": "google machine learning", "description": "Google search", "command": "Dynamic command"},
-            ],
-            "Process Management": [
-                {"example": "list processes", "description": "List running processes", "command": "tasklist"},
-                {"example": "kill process 1234", "description": "Kill a process by PID", "command": "taskkill /PID 1234 /F"},
-                {"example": "list services", "description": "List running services", "command": "net start"},
-            ],
-            "System Control": [
-                {"example": "shutdown my computer", "description": "Shutdown PC", "command": "shutdown /s /t 0"},
-                {"example": "restart my computer", "description": "Restart PC", "command": "shutdown /r /t 0"},
-                {"example": "lock my computer", "description": "Lock screen", "command": "rundll32.exe user32.dll,LockWorkStation"},
-                {"example": "sleep computer", "description": "Put PC to sleep", "command": "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"},
-                {"example": "clear the screen", "description": "Clear console", "command": "cls"},
+            "System Identity": [
+                {"example": "ver", "description": "Displays the current Windows OS version number", "command": "ver"},
+                {"example": "hostname", "description": "Displays the name of the current computer on the network", "command": "hostname"},
+                {"example": "whoami", "description": "Displays the currently logged-in user's domain and username", "command": "whoami"},
             ],
             "Date & Time": [
-                {"example": "show date", "description": "Show current date", "command": "date /t"},
-                {"example": "what time is it", "description": "Show current time", "command": "time /t"},
-                {"example": "check date and time", "description": "Show date and time", "command": "date /t & time /t"},
+                {"example": "date /t", "description": "Displays the current system date without prompting to change it", "command": "date /t"},
+                {"example": "time /t", "description": "Displays the current system time without prompting to change it", "command": "time /t"},
+            ],
+            "Screen & Console": [
+                {"example": "cls", "description": "Clears all text from the Command Prompt screen", "command": "cls"},
+                {"example": "color 0A", "description": "Changes console colors (0=black bg, A=green text)", "command": "color 0A"},
+                {"example": "title My CMD Window", "description": "Sets a custom title for the CMD window's title bar", "command": "title My CMD Window"},
+            ],
+            "Directory Listing": [
+                {"example": "dir", "description": "Lists all files and subdirectories in the current directory", "command": "dir"},
+            ],
+            "Networking": [
+                {"example": "ipconfig", "description": "Displays IP address, subnet mask, and default gateway for all adapters", "command": "ipconfig"},
+                {"example": "netstat", "description": "Displays active TCP connections, listening ports, and network statistics", "command": "netstat"},
+                {"example": "getmac", "description": "Displays the MAC address of all network adapters", "command": "getmac"},
+                {"example": "nslookup google.com", "description": "Queries the DNS server to find the IP address of a domain", "command": "nslookup google.com"},
+                {"example": "ping localhost", "description": "Tests network connectivity by sending ICMP echo requests", "command": "ping localhost"},
+            ],
+            "System Information & Processes": [
+                {"example": "systeminfo", "description": "Displays detailed system configuration (OS, hardware, network)", "command": "systeminfo"},
+                {"example": "tasklist", "description": "Displays all currently running processes with PID and memory usage", "command": "tasklist"},
+                {"example": "driverquery", "description": "Displays a list of all installed hardware device drivers", "command": "driverquery"},
+            ],
+            "Environment & Configuration": [
+                {"example": "set", "description": "Displays all current environment variables and their values", "command": "set"},
+                {"example": "path", "description": "Displays the system PATH variable used to locate executables", "command": "path"},
+                {"example": "assoc", "description": "Displays file extension associations (which program opens each type)", "command": "assoc"},
             ],
         }
         return categories
