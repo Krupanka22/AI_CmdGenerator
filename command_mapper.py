@@ -44,33 +44,35 @@ class CommandMapper:
         self.fallback_patterns = self._load_fallback_patterns()
         self.app_mappings = {}
     
-    def map_to_command(self, user_input: str) -> Optional[str]:
+    def map_to_command(self, user_input: str) -> Tuple[Optional[str], Optional[str]]:
         user_input = user_input.strip().lower()
         
         # 1. Check local mappings first
         local_command = self._fallback_map_command(user_input)
         if local_command:
-            return local_command
+            return local_command, "local"
             
         # 2. If not available locally, use AI API
         if self.use_ai:
             ai_command = self._ai_map_command(user_input)
             if ai_command:
-                return ai_command
+                return ai_command, "api"
                 
-        return None
+        return None, None
     
-    def map_to_command_with_correction(self, user_input: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def map_to_command_with_correction(self, user_input: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         user_input = user_input.strip().lower()
-        exact_command = self.map_to_command(user_input)
+        exact_command, source = self.map_to_command(user_input)
         if exact_command:
-            return exact_command, user_input, None
+            return exact_command, user_input, None, source
+        
         corrected_input = self._correct_spelling(user_input)
         if corrected_input and corrected_input != user_input:
-            corrected_command = self.map_to_command(corrected_input)
+            corrected_command, source = self.map_to_command(corrected_input)
             if corrected_command:
-                return corrected_command, user_input, corrected_input
-        return None, user_input, None
+                return corrected_command, user_input, corrected_input, source
+                
+        return None, user_input, None, None
     
     def _correct_spelling(self, user_input: str) -> Optional[str]:
         command_keywords = {

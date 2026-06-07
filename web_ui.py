@@ -204,7 +204,7 @@ def process_command(user_input: str) -> Dict:
     try:
         # Map to command
         # Use spell correction and mapping
-        mapped_command, _, suggested_correction = command_mapper.map_to_command_with_correction(user_input)
+        mapped_command, _, suggested_correction, source = command_mapper.map_to_command_with_correction(user_input)
         
         if not mapped_command:
             return {
@@ -220,23 +220,17 @@ def process_command(user_input: str) -> Dict:
         # Check if this is a command listing request
         is_command_listing = any(keyword in user_input.lower() for keyword in ['list all commands', 'show all commands', 'help commands'])
         
-        # Execute the command automatically (unless it's just a command listing request)
-        execution_output = None
-        exec_success = True
-        if mapped_command and not is_command_listing:
-            # For web searches/URL openings with 'start', we still want the UI to handle it specially
-            # But for regular commands, execute them now
-            exec_res = executor.execute(mapped_command, user_input)
-            execution_output = exec_res.output if exec_res.success else exec_res.error
-            exec_success = exec_res.success
+        # Construct message based on spell check and action
+        msg_parts = []
+        if suggested_correction:
+            msg_parts.append(f"I think you meant: '{suggested_correction}'")
             
-            if suggested_correction:
-                message = f"I think you meant: '{suggested_correction}'\n\nAutomatically executed: {mapped_command}"
-            else:
-                message = f"Automatically executed: {mapped_command}"
+        if is_command_listing:
+            msg_parts.append("I'll show you all available commands organized by category.")
         else:
-            if is_command_listing:
-                message = "I'll show you all available commands organized by category."
+            msg_parts.append(f"I'll execute: {mapped_command}")
+            
+        message = "\n\n".join(msg_parts)
         
         return {
             'type': 'command_mapped',
@@ -244,9 +238,9 @@ def process_command(user_input: str) -> Dict:
             'timestamp': datetime.datetime.now().isoformat(),
             'user_input': user_input,
             'mapped_command': mapped_command,
-            'execution_result': execution_output,
-            'success': exec_success,
-            'needs_confirmation': False,
+            'execution_result': None,
+            'success': True,
+            'needs_confirmation': True,
             'suggested_correction': suggested_correction,
             'is_command_listing': is_command_listing
         }
