@@ -46,11 +46,19 @@ class CommandMapper:
     
     def map_to_command(self, user_input: str) -> Optional[str]:
         user_input = user_input.strip().lower()
+        
+        # 1. Check local mappings first
+        local_command = self._fallback_map_command(user_input)
+        if local_command:
+            return local_command
+            
+        # 2. If not available locally, use AI API
         if self.use_ai:
             ai_command = self._ai_map_command(user_input)
             if ai_command:
                 return ai_command
-        return self._fallback_map_command(user_input)
+                
+        return None
     
     def map_to_command_with_correction(self, user_input: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         user_input = user_input.strip().lower()
@@ -172,7 +180,6 @@ Examples:
             # Screen & Console
             r"^cls$": "cls",
             r"clear\s+the\s+screen": "cls",
-            r"^color\s+0a$": "color 0A",
             r"^title\s+my\s+cmd\s+window$": "title My CMD Window",
             
             # Directory Listing
@@ -243,7 +250,6 @@ Examples:
             ],
             "Screen & Console": [
                 {"example": "cls", "description": "Clears all text from the Command Prompt screen", "command": "cls"},
-                {"example": "color 0A", "description": "Changes console colors (0=black bg, A=green text)", "command": "color 0A"},
                 {"example": "title My CMD Window", "description": "Sets a custom title for the CMD window's title bar", "command": "title My CMD Window"},
             ],
             "Directory Listing": [

@@ -345,7 +345,6 @@ def get_help():
             "path",
             "driverquery",
             "assoc",
-            "color 0A",
             "title My CMD Window"
         ],
         'groq_examples': [],
